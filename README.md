@@ -7,10 +7,10 @@ This repository was inspired by the work of [Dr. Phil 'Lucid' Wang](https://gith
 ### Research Papers:
 - https://arxiv.org/abs/2104.09864
 
-### Official Repository
+### Official Repository:
 - https://github.com/ZhuiyiTechnology/roformer
 
-### Citations
+### Citations:
 ```bibtex
 @article{rope-paper,
   title={RoFormer: Enhanced Transformer with Rotary Position Embedding},
