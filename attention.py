@@ -6,6 +6,42 @@ from jax import einsum
 
 from einops import rearrange
 
+# helper functions
+
+def exists(val):
+    return val is not None
+
+def cast_tuple(val, num = 1):
+    return val if isinstance(val, tuple) else ((val,) * num)
+
+def default(val, d):
+    return val if exists(val) else d
+
+# positional embedding
+
+class RotaryEmbedding(hk.Module):
+    def __init__(self, dim):
+        super().__init__()
+        inv_freq = 1. / (10000 ** (jax.arange(0, dim, 2).float() / dim))
+        #self.register_buffer('inv_freq', inv_freq)
+
+    def forward(self, max_seq_len, *, offset = 0):
+        seq = jnp.arange(max_seq_len) + offset
+        freqs = einsum('i , j -> i j', seq.type_as(self.inv_freq), self.inv_freq)
+        emb = jnp.concatenate((freqs, freqs), axis = -1)
+        return rearrange(emb, 'n d -> 1 1 n d')
+
+def rotate_half(x):
+    x = rearrange(x, '... (j d) -> ... j d', j = 2)
+    x1, x2 = x.unbind(dim = -2)
+    return jnp.concatenate((-x2, x1), axis = -1)
+
+def apply_rotary_pos_emb(t, freqs):
+    seq_len, rot_dim = t.shape[-2], freqs.shape[-1]
+    t, t_pass = t[..., :rot_dim], t[..., rot_dim:]
+    t = (t * jnp.cos(freqs)) + (rotate_half(t) * jnp.sin(freqs))
+    return jnp.concatenate((t, t_pass), axis = -1)
+
 # attention
 
 class Attention(hk.Module):
