@@ -25,7 +25,7 @@ class RotaryEmbedding(hk.Module):
         inv_freq = 1. / (10000 ** (jax.arange(0, dim, 2).float() / dim))
         #self.register_buffer('inv_freq', inv_freq)
 
-    def forward(self, max_seq_len, *, offset = 0):
+    def __call__(self, max_seq_len, *, offset = 0):
         seq = jnp.arange(max_seq_len) + offset
         freqs = einsum('i , j -> i j', seq.type_as(self.inv_freq), self.inv_freq)
         emb = jnp.concatenate((freqs, freqs), axis = -1)
@@ -70,7 +70,7 @@ class Attention(hk.Module):
         self.to_v = hk.Linear(inner_dim, bias = False)
         self.to_out = hk.Linear(dim)
 
-    def forward(self, x, context = None, pos_emb = None):
+    def __call__(self, x, context = None, pos_emb = None):
         b, h, scale = x.shape[0], self.heads, self.scale
 
         kv_input = default(context, x)
