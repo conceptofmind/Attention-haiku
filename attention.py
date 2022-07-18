@@ -2,7 +2,7 @@ import haiku as hk
 
 import jax
 import jax.numpy as jnp
-from jax import einsum
+from jax import einsum, numpy
 
 from einops import rearrange
 
@@ -22,8 +22,7 @@ def default(val, d):
 class RotaryEmbedding(hk.Module):
     def __init__(self, dim):
         super().__init__()
-        inv_freq = 1. / (10000 ** (jax.arange(0, dim, 2).float() / dim))
-        #self.register_buffer('inv_freq', inv_freq)
+        self.inv_freq = 1. / (10000 ** (jax.arange(0, dim, 2).float() / dim))
 
     def __call__(self, max_seq_len, *, offset = 0):
         seq = jnp.arange(max_seq_len) + offset
@@ -31,9 +30,12 @@ class RotaryEmbedding(hk.Module):
         emb = jnp.concatenate((freqs, freqs), axis = -1)
         return rearrange(emb, 'n d -> 1 1 n d')
 
+def jax_unstack(x, axis = 0):
+    return jnp.moveaxis(x, axis, 0)
+
 def rotate_half(x):
     x = rearrange(x, '... (j d) -> ... j d', j = 2)
-    x1, x2 = x.unbind(dim = -2)
+    x1, x2 = jax_unstack(x, axis = -2)
     return jnp.concatenate((-x2, x1), axis = -1)
 
 def apply_rotary_pos_emb(t, freqs):
@@ -53,7 +55,7 @@ class Attention(hk.Module):
         dim_head = 64,
         heads = 8,
         causal = False,
-        dropout = 0.,
+        dropout = 0.
     ):
         super().__init__()
         context_dim = default(context_dim, dim)
@@ -65,9 +67,9 @@ class Attention(hk.Module):
 
         self.dropout = dropout
 
-        self.to_q = hk.Linear(inner_dim, bias = False)
-        self.to_k = hk.Linear(inner_dim, bias = False)
-        self.to_v = hk.Linear(inner_dim, bias = False)
+        self.to_q = hk.Linear(inner_dim, with_bias = False)
+        self.to_k = hk.Linear(inner_dim, with_bias = False)
+        self.to_v = hk.Linear(inner_dim, with_bias = False)
         self.to_out = hk.Linear(dim)
 
     def __call__(self, x, context = None, pos_emb = None):
@@ -103,7 +105,7 @@ class Attention(hk.Module):
 
         if self.causal:
             i, j = sim.shape[-2:]
-            causal_mask = jnp.ones(i, j, dtype = np.bool).triu(j - i + 1)
+            causal_mask = jnp.ones(i, j, dtype = numpy.bool).triu(j - i + 1)
             sim = jnp.where(causal_mask, sim, mask_value)
 
         # attention
